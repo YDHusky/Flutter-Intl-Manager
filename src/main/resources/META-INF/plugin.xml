@@ -1,15 +1,31 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
-    <id>org.jetbrains.plugins.template</id>
-    <name>IntelliJ Platform Plugin Template</name>
-    <vendor>JetBrains</vendor>
+    <id>online.yudream.intl</id>
+    <name>Flutter Intl Manager</name>
+    <vendor>SiberianHusky</vendor>
 
     <depends>com.intellij.modules.platform</depends>
 
     <resource-bundle>messages.MyBundle</resource-bundle>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="org.jetbrains.plugins.template.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
-        <postStartupActivity implementation="org.jetbrains.plugins.template.startup.MyProjectActivity" />
+        <applicationConfigurable instance="online.yudream.intl.ui.GlobalSettingsConfigurable"
+                                 displayName="Flutter Intl Manager Settings"/>
+        <toolWindow factoryClass="online.yudream.intl.windows.IntlManagerWindows" id="Intl Manager" anchor="right"/>
+        <applicationService serviceImplementation="online.yudream.intl.common.GlobalSettings"/>
+        <notificationGroup id="FlutterIntlManager"
+                           displayType="BALLOON"/>
+
     </extensions>
+    <extensions defaultExtensionNs="com.intellij">
+        <lang.foldingBuilder language="Dart" implementationClass="online.yudream.intl.dart.DartFoldingBuilder"/>
+    </extensions>
+    <actions>
+        <action id="online.yudream.intl.action.AddIntlValueAction" class="online.yudream.intl.action.AddIntlValueAction"
+                text="新增Intl Value" description="添加一个本地化">
+            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
+            <keyboard-shortcut keymap="$default" first-keystroke="shift ctrl Q"/>
+        </action>
+    </actions>
+
 </idea-plugin>

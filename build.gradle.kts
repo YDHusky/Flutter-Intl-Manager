@@ -3,8 +3,8 @@ import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
+    id("com.github.johnrengelman.shadow") version "7.0.0" // 添加 shadow 插件
     id("java") // Java support
-    alias(libs.plugins.kotlin) // Kotlin support
     alias(libs.plugins.intelliJPlatform) // IntelliJ Platform Gradle Plugin
     alias(libs.plugins.changelog) // Gradle Changelog Plugin
     alias(libs.plugins.qodana) // Gradle Qodana Plugin
@@ -14,16 +14,12 @@ plugins {
 group = providers.gradleProperty("pluginGroup").get()
 version = providers.gradleProperty("pluginVersion").get()
 
-// Set the JVM language level used to build the project.
-kotlin {
-    jvmToolchain(21)
-}
-
 // Configure project's dependencies
 repositories {
     mavenCentral()
-
-    // IntelliJ Platform Gradle Plugin Repositories Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-repositories-extension.html
+    maven {
+        url = uri("https://maven.aliyun.com/repository/public")
+    }
     intellijPlatform {
         defaultRepositories()
     }
@@ -33,15 +29,15 @@ repositories {
 dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.opentest4j)
+    implementation("com.alibaba.fastjson2:fastjson2:2.0.57")
+    implementation("com.openai:openai-java:1.5.1")
+    runtimeOnly("com.alibaba.fastjson2:fastjson2:2.0.57")
+    runtimeOnly("com.openai:openai-java:1.5.1")
 
-    // IntelliJ Platform Gradle Plugin Dependencies Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-dependencies-extension.html
     intellijPlatform {
         create(providers.gradleProperty("platformType"), providers.gradleProperty("platformVersion"))
 
-        // Plugin Dependencies. Uses `platformBundledPlugins` property from the gradle.properties file for bundled IntelliJ Platform plugins.
         bundledPlugins(providers.gradleProperty("platformBundledPlugins").map { it.split(',') })
-
-        // Plugin Dependencies. Uses `platformPlugins` property from the gradle.properties file for plugin from JetBrains Marketplace.
         plugins(providers.gradleProperty("platformPlugins").map { it.split(',') })
 
         testFramework(TestFrameworkType.Platform)
@@ -94,10 +90,8 @@ intellijPlatform {
 
     publishing {
         token = providers.environmentVariable("PUBLISH_TOKEN")
-        // The pluginVersion is based on the SemVer (https://semver.org) and supports pre-release labels, like 2.1.7-alpha.3
-        // Specify pre-release label to publish the plugin in a custom Release Channel automatically. Read more:
-        // https://plugins.jetbrains.com/docs/intellij/deployment.html#specifying-a-release-channel
-        channels = providers.gradleProperty("pluginVersion").map { listOf(it.substringAfter('-', "").substringBefore('.').ifEmpty { "default" }) }
+        channels = providers.gradleProperty("pluginVersion")
+            .map { listOf(it.substringAfter('-', "").substringBefore('.').ifEmpty { "default" }) }
     }
 
     pluginVerification {
@@ -130,7 +124,21 @@ tasks {
     }
 
     publishPlugin {
+        dependsOn(shadowJar)
         dependsOn(patchChangelog)
+    }
+
+    // Configure shadowJar task to include runtime dependencies
+    shadowJar {
+        archiveBaseName.set(providers.gradleProperty("pluginName"))
+        archiveVersion.set(providers.gradleProperty("pluginVersion"))
+
+        // 将所有运行时依赖（包括 fastjson2 和 openai-java）打包到一个 fat JAR
+        mergeServiceFiles()
+
+        // Ensure that all runtime dependencies are included in the JAR
+        from(project.configurations.runtimeClasspath.get().filter { it.exists() }.map { zipTree(it) })
+
     }
 }
 
